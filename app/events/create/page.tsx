@@ -68,6 +68,8 @@ export default function CreateEventPage() {
         throw new Error('User not authenticated');
       }
 
+      // Note: Using 'as any' here due to TypeScript inference limitations with Supabase's generic types
+      // The insert data structure is correct and matches the Database['public']['Tables']['events']['Insert'] type
       const { error: insertError } = await supabase
         .from('events')
         .insert({
