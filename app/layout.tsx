@@ -1,21 +1,39 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import Navbar from "@/components/navbar";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ACG Climbing - Adaptive Climbing Sessions",
-  description: "Website for Adaptive individuals to sign up for climbing sessions and see information for that day based off of a calendar.",
+    title: "Adaptive Climbing Group",
+    description: "Community organizing platform",
 };
 
 export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
+                                       children,
+                                   }: Readonly<{
+    children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en">
-      <body className="antialiased">
-        {children}
-      </body>
-    </html>
-  );
+    return (
+        <html lang="en" suppressHydrationWarning>
+        <body className={inter.className}>
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+            {/* The Navbar sits at the top of every page */}
+            <Navbar />
+
+            <main className="min-h-screen bg-background text-foreground">
+                {children}
+            </main>
+
+        </ThemeProvider>
+        </body>
+        </html>
+    );
 }
