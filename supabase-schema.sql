@@ -1,6 +1,6 @@
 -- ACG Climbing Sessions Database Schema
 
--- Create profiles table
+-- 1. PROFILES
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id),
   email TEXT NOT NULL,
@@ -10,17 +10,15 @@ CREATE TABLE profiles (
   updated_at TIMESTAMP WITH TIME ZONE
 );
 
--- Enable RLS on profiles
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Profiles policies
 CREATE POLICY "Users can view their own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
 
 CREATE POLICY "Users can update their own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 
--- Create events table
+-- 2. EVENTS
 CREATE TABLE events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
@@ -34,10 +32,8 @@ CREATE TABLE events (
   updated_at TIMESTAMP WITH TIME ZONE
 );
 
--- Enable RLS on events
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 
--- Events policies
 CREATE POLICY "Events are viewable by everyone" ON events
   FOR SELECT USING (true);
 
@@ -70,7 +66,27 @@ CREATE POLICY "Lead users can delete their own events" ON events
     )
   );
 
--- Create a function to handle new user creation
+-- 3. EVENT PARTICIPANTS (New Addition)
+CREATE TABLE public.event_participants (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_id UUID REFERENCES public.events(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(event_id, user_id)
+);
+
+ALTER TABLE public.event_participants ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view participants" ON public.event_participants
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can join events" ON public.event_participants
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can leave events" ON public.event_participants
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- 4. AUTOMATION (Triggers)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -80,7 +96,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create a trigger to automatically create a profile for new users
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

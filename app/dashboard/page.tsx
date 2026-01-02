@@ -1,134 +1,130 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
-import { enUS } from 'date-fns/locale/en-US';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
-import Navigation from '@/components/Navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Profile, Event, UserRole } from '@/types/database';
+import { Calendar, Users, CheckCircle, Clock } from 'lucide-react';
+import { format } from 'date-fns';
 
-const locales = {
-  'en-US': enUS,
-};
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  start: Date;
-  end: Date;
-  resource?: Event;
-}
-
-export default function DashboardPage() {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [userRole, setUserRole] = useState<UserRole>();
+export default function DashboardHome() {
+  const [stats, setStats] = useState({
+    upcomingEvents: 0,
+    activeClimbers: 0, // Placeholder logic
+    helpedTotal: 0,
+  });
+  const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        const profile = data as Profile | null;
-        
-        if (profile && !error) {
-          setUserRole(profile.role);
-        }
-      }
-    };
+    const fetchData = async () => {
+      // 1. Get Upcoming Events Count
+      const { count: eventsCount } = await supabase
+        .from('events')
+        .select('*', { count: 'exact', head: true })
+        .gte('start_time', new Date().toISOString());
 
-    const fetchEvents = async () => {
-      const { data, error } = await supabase
+      // 2. Get "Climbers" Count (Total profiles with role 'climber')
+      const { count: climberCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'climber');
+
+      // 3. Get Recent Events (last 3)
+      const { data: recent } = await supabase
         .from('events')
         .select('*')
-        .order('start_time', { ascending: true });
+        .order('start_time', { ascending: true })
+        .limit(3);
 
-      const events = data as Event[] | null;
-
-      if (events && !error) {
-        const calendarEvents: CalendarEvent[] = events.map((event) => ({
-          id: event.id,
-          title: event.title,
-          start: new Date(event.start_time),
-          end: new Date(event.end_time),
-          resource: event,
-        }));
-        setEvents(calendarEvents);
-      }
+      setStats({
+        upcomingEvents: eventsCount || 0,
+        activeClimbers: climberCount || 0,
+        helpedTotal: 142, // Dummy data for now, requires deeper query
+      });
+      setRecentEvents(recent || []);
       setLoading(false);
     };
 
-    fetchUserProfile();
-    fetchEvents();
+    fetchData();
+  }, []);
 
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel('events-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'events' },
-        () => {
-          fetchEvents();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase]);
+  if (loading) return <div>Loading dashboard...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation userRole={userRole} />
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">
-              Climbing Sessions Calendar
-            </h1>
-            {loading ? (
-              <div className="flex justify-center items-center h-96">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-              </div>
-            ) : (
-              <div className="h-[600px]">
-                <Calendar
-                  localizer={localizer}
-                  events={events}
-                  startAccessor="start"
-                  endAccessor="end"
-                  style={{ height: '100%' }}
-                  views={['month', 'week', 'day', 'agenda']}
-                  defaultView="month"
-                  popup
-                  tooltipAccessor={(event) => {
-                    const resource = event.resource as Event;
-                    return resource?.description || event.title;
-                  }}
-                />
-              </div>
-            )}
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+
+      {/* STATS CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+          <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
+            <Calendar className="h-8 w-8" />
+          </div>
+          <div className="ml-4">
+            <p className="text-sm font-medium text-gray-500">Upcoming Events</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.upcomingEvents}</p>
           </div>
         </div>
-      </main>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+          <div className="p-3 bg-green-50 rounded-lg text-green-600">
+            <Users className="h-8 w-8" />
+          </div>
+          <div className="ml-4">
+            <p className="text-sm font-medium text-gray-500">Registered Climbers</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.activeClimbers}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+          <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
+            <CheckCircle className="h-8 w-8" />
+          </div>
+          <div className="ml-4">
+            <p className="text-sm font-medium text-gray-500">Sessions Completed</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.helpedTotal}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* RECENT ACTIVITY / UPCOMING LIST */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-gray-900">Upcoming Sessions</h2>
+          <button className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">View All</button>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {recentEvents.map((event) => (
+            <div key={event.id} className="p-6 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-start space-x-4">
+                  <div className="flex-shrink-0 text-center px-4 py-2 bg-gray-100 rounded-lg">
+                    <span className="block text-xs font-bold text-gray-500 uppercase">
+                      {format(new Date(event.start_time), 'MMM')}
+                    </span>
+                    <span className="block text-xl font-bold text-gray-900">
+                      {format(new Date(event.start_time), 'dd')}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-medium text-gray-900">{event.title}</h3>
+                    <div className="mt-1 flex items-center text-sm text-gray-500">
+                      <Clock className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                      {format(new Date(event.start_time), 'h:mm a')}
+                    </div>
+                  </div>
+                </div>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Open
+                </span>
+              </div>
+            </div>
+          ))}
+          {recentEvents.length === 0 && (
+            <div className="p-6 text-center text-gray-500">No upcoming events found.</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

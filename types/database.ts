@@ -22,14 +22,6 @@ export interface Event {
   updated_at?: string | null;
 }
 
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
-
 export interface Database {
   public: {
     Tables: {
@@ -43,18 +35,41 @@ export interface Database {
         Insert: Omit<Event, 'id' | 'created_at'>;
         Update: Partial<Omit<Event, 'id' | 'created_at'>>;
       };
-    };
-    Views: {
-      [_ in never]: never;
-    };
-    Functions: {
-      [_ in never]: never;
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
+      event_participants: {
+        Row: {
+          id: string;
+          event_id: string;
+          user_id: string;
+          joined_at: string;
+        };
+        Insert: {
+          event_id: string;
+          user_id: string;
+          joined_at?: string;
+        };
+        Update: {
+          event_id?: string;
+          user_id?: string;
+          joined_at?: string;
+        };
+      };
+      active_sessions: {
+        Row: {
+          id: string;
+          created_at: string;
+          code: string;
+          guide_id: string | null;
+          climber_id: string | null;
+          status: 'waiting' | 'active' | 'completed';
+        };
+        Insert: {
+          code: string;
+          guide_id?: string | null;
+          climber_id?: string | null;
+          status?: 'waiting' | 'active' | 'completed';
+        };
+        Update: Partial<Omit<Database['public']['Tables']['active_sessions']['Row'], 'id' | 'created_at'>>;
+      };
     };
   };
 }
