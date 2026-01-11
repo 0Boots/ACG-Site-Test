@@ -1,24 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { UserRole } from '@/types/database';
-import { 
-  LayoutDashboard, 
-  CalendarDays, 
-  Users, 
-  LogOut, 
-  Menu,
-  X,
-  Mountain
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { LayoutDashboard, Calendar, LogOut, User } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userRole, setUserRole] = useState<UserRole>();
+  const [userProfile, setUserProfile] = useState<any>(null);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -26,101 +16,110 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) router.push('/login');
-      
-      // Fetch role
-      if (user) {
-        const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-        if (data) {
-            setUserRole((data as any).role);
-        }
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      // Fetch Profile Details
+      const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+      // FIX: Cast data to 'any' so we can spread it {...data} without errors
+      const profileData = data as any;
+
+      if (profileData) {
+        // Fallback to Google Avatar if DB one is empty
+        const avatar = profileData.avatar_url || user.user_metadata?.avatar_url;
+        setUserProfile({ ...profileData, avatar_url: avatar });
       }
     };
     getUser();
-  }, []);
+  }, [router]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push('/');
   };
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Events', href: '/dashboard/events', icon: CalendarDays }, // New Events Feed
+  const navItems = [
+    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { label: 'Events', href: '/dashboard/events', icon: Calendar },
   ];
 
-  // Only show "Manage Users" or similar to Leads (future proofing)
-  if (userRole === 'lead') {
-    // navigation.push({ name: 'Manage Volunteers', href: '/dashboard/volunteers', icon: Users });
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 dark:text-white">
-      {/* Mobile sidebar toggle */}
-      <div className="lg:hidden flex items-center justify-between bg-white p-4 border-b">
-        <span className="font-bold text-xl">ACG Climbing</span>
-        <button onClick={() => setSidebarOpen(!sidebarOpen)}>
-          {sidebarOpen ? <X /> : <Menu />}
-        </button>
-      </div>
-
-      {/* Sidebar */}
-        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 dark:border-slate-800 border-r transform ...`}>        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-center h-16 border-b px-4">
-            <Mountain className="h-8 w-8 text-indigo-600 mr-2" />
-            <h1 className="text-xl font-bold text-gray-900">ACG Manager</h1>
+      <div className="min-h-screen flex bg-gray-50 dark:bg-slate-950">
+        {/* SIDEBAR */}
+        <aside className="w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col fixed h-full">
+          <div className="p-6 border-b border-gray-100 dark:border-slate-800">
+            <h1 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+              <span className="text-2xl">▲</span> ACG Manager
+            </h1>
           </div>
 
-          {/* Nav Links */}
-          <nav className="flex-1 px-4 py-6 space-y-1">
-            {navigation.map((item) => {
+          <nav className="flex-1 p-4 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors ${
-                    isActive 
-                      ? 'bg-indigo-50 text-indigo-700' 
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <item.icon className={`mr-3 h-5 w-5 ${isActive ? 'text-indigo-600' : 'text-gray-400'}`} />
-                  {item.name}
-                </Link>
+                  <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                          isActive
+                              ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400'
+                              : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-slate-800'
+                      }`}
+                  >
+                    <Icon size={20} />
+                    {item.label}
+                  </Link>
               );
             })}
           </nav>
 
-          {/* User Profile & Logout */}
-          <div className="border-t p-4">
-            <div className="flex items-center mb-4 px-2">
-              <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
-                {userRole?.charAt(0).toUpperCase()}
+          {/* BOTTOM USER PROFILE SECTION */}
+          <div className="p-4 border-t border-gray-100 dark:border-slate-800">
+            <div className="flex items-center gap-3 mb-4">
+              {/* Avatar Circle */}
+              <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 shrink-0">
+                {userProfile?.avatar_url ? (
+                    <Image src={userProfile.avatar_url} alt="Profile" fill className="object-cover" />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">
+                      <User size={20} />
+                    </div>
+                )}
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700 capitalize">{userRole}</p>
-                <p className="text-xs text-gray-500">View Profile</p>
-              </div>
+
+              {/* Name & Role (Clickable) */}
+              <Link href="/dashboard/profile" className="flex-1 min-w-0 hover:underline">
+                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                  {userProfile?.full_name || 'Loading...'}
+                </p>
+                <p className="text-xs text-gray-500 capitalize truncate">
+                  {userProfile?.role || 'Climber'}
+                </p>
+              </Link>
             </div>
+
             <button
-              onClick={handleSignOut}
-              className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md"
+                onClick={handleSignOut}
+                className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700 w-full px-2 py-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
             >
-              <LogOut className="mr-3 h-5 w-5" />
+              <LogOut size={16} />
               Sign Out
             </button>
           </div>
-        </div>
-      </div>
+        </aside>
 
-      {/* Main Content Area */}
-      <div className="lg:pl-64 flex flex-col min-h-screen">
-        <main className="flex-1 p-8">
+        {/* MAIN CONTENT AREA */}
+        <main className="flex-1 ml-64 p-8">
           {children}
         </main>
       </div>
-    </div>
   );
 }

@@ -51,14 +51,14 @@ export default function Navbar() {
                             <span className="sr-only">Toggle theme</span>
                         </button>
 
-                        {/* Google Sign In Button */}
-                        <button
-                            onClick={handleLogin}
-                            className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
-                        >
-                            <LogIn className="h-4 w-4" />
-                            Sign in with Google
-                        </button>
+                        {/*/!* Google Sign In Button *!/    /!* removing google sign in button on the top right since it doesn't work, keeping the sign in in the middle of the page *!/*/}
+                        {/*<button*/}
+                        {/*    onClick={handleLogin}*/}
+                        {/*    className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"*/}
+                        {/*>*/}
+                        {/*    <LogIn className="h-4 w-4" />*/}
+                        {/*    Sign in with Google*/}
+                        {/*</button>*/}
                     </div>
                 </div>
             </div>
